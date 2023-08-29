@@ -31,6 +31,61 @@ export default function HomeScreen({ navigation }) {
     AsyncStorage.setItem('sections', JSON.stringify(newSections));
   };
 
+  const handleLongPress = (section, index) => {
+    Alert.alert(
+      'Manage Section',
+      `What would you like to do with "${section}"?`,
+      [
+        {
+          text: 'Edit',
+          onPress: () => editSection(section, index)
+        },
+        {
+          text: 'Delete',
+          onPress: () => deleteSection(index),
+          style: 'destructive'
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+  
+  const editSection = (section, index) => {
+    Alert.prompt(
+      'Edit Section',
+      'Update the section name:',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Save',
+          onPress: newName => {
+            const updatedSections = [...sections];
+            updatedSections[index] = newName;
+            setSections(updatedSections);
+            AsyncStorage.setItem('sections', JSON.stringify(updatedSections));
+          }
+        }
+      ],
+      'plain-text',
+      section  // default value
+    );
+  };
+  
+  const deleteSection = (index) => {
+    const updatedSections = [...sections];
+    updatedSections.splice(index, 1);
+    setSections(updatedSections);
+    AsyncStorage.setItem('sections', JSON.stringify(updatedSections));
+  };
+  
+
   if (!fontsLoaded) {
     return null;
   }
@@ -39,12 +94,13 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       {sections.map((section, index) => (
         <TouchableOpacity
-          key={index}
-          style={[styles.sectionButton, { flex: 1 / sections.length }]}
-          onPress={() => navigation.navigate('JaapCounter', { sectionName: section })}
+        key={index}
+        style={[styles.sectionButton, { flex: 1 / sections.length }]}
+        onPress={() => navigation.navigate('JaapCounter', { sectionName: section })}
+        onLongPress={() => handleLongPress(section, index)}
         >
-          <Text style={styles.buttonText}>{section}</Text>
-        </TouchableOpacity>
+        <Text style={styles.buttonText}>{section}</Text>
+      </TouchableOpacity>
       ))}
       <View style={styles.addSectionContainer}>
         <TextInput
