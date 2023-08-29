@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, Poppins_400Regular} from '@expo-google-fonts/poppins';
 
 export default function HomeScreen({ navigation }) {
-  const [sections, setSections] = useState([]);
+  const [sections, setSections] = useState(['Naam Jaap', 'Hanuman Chalisa']);
   const [newSectionName, setNewSectionName] = useState('');
 
   let [fontsLoaded] = useFonts({
@@ -41,7 +41,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           key={index}
           style={[styles.sectionButton, { flex: 1 / sections.length }]}
-          onPress={() => navigation.navigate('Counter', { sectionName: section })}
+          onPress={() => navigation.navigate('JaapCounter', { sectionName: section })}
         >
           <Text style={styles.buttonText}>{section}</Text>
         </TouchableOpacity>
@@ -57,6 +57,10 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.buttonText}>ADD SECTION</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity style={styles.instructionsButton}
+            onPress={() => navigation.navigate('Instructions')}>
+        <Text style={styles.instructionsText}>How to use this app</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -94,5 +98,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
+  },
+  instructionsButton: {
+    backgroundColor: '#007BFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 20, // Add some space from the other content
+  },
+  instructionsText: {
+    color: 'white',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
   },
 });

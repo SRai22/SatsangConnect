@@ -64,26 +64,39 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 50,
     fontFamily: 'Poppins_400Regular'
   },
   countText: {
-    fontSize: 48,
-    marginBottom: 20,
+    fontSize: 72,  // Increase font size for count display
+    marginBottom: 200,
+    fontFamily: 'Poppins_400Regular'
   },
   buttonContainer: {
     flexDirection: 'row',
+    position: 'absolute',  // Position the buttons at the bottom
+    bottom: 100,  // Adjust as needed for margin from the bottom
+    width: '100%',
+    justifyContent: 'center',  // Center the buttons horizontally
   },
   incrementButton: {
-    padding: 10,
+    padding: 5,
+    width: '50%',  // 40% of the screen width
+    aspectRatio: 1,  // Makes it a perfect circle
     backgroundColor: '#007AFF',
-    borderRadius: 5,
-    marginRight: 5,
+    borderRadius: 700,  // Large enough value to ensure a circle
+    justifyContent: 'center',  // Center the text inside the button vertically
+    alignItems: 'center',  // Center the text inside the button horizontally
   },
   clearButton: {
     padding: 10,
+    width: 90,  // Width of the clear button
+    height: 90,  // Height of the clear button
     backgroundColor: 'red',
-    borderRadius: 5,
+    borderRadius: 30,  // Half of the width/height for a perfect circle
+    marginLeft: 20,  // Space between the count and clear buttons
+    justifyContent: 'center',  // Center the text inside the button vertically
+    alignItems: 'center',  // Center the text inside the button horizontally
   },
   buttonText: {
     color: 'white',
