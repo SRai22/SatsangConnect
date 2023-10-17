@@ -1,35 +1,84 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
-node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
 .DS_Store
-*.pem
+.atom/
+.buildlog/
+.history
+.svn/
 
-# local env files
-.env*.local
+# Android-related
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+*.o
+*.so
+*.aar
+*.iml
+*.hprof
+.android/
+.build/
+local.properties
 
-# typescript
-*.tsbuildinfo
+# iOS-related
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.mov
+*.mp4
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.ipynb_checkpoints/
+*.xcworkspace
+*.DS_Store
+*.OLD
+build/
+Pods/
+*.bak 
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Web related
+lib/generated_plugin_registrant.dart
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Exceptions to above rules.
+!/packages/flutter_tools/test/data/dart_dependencies_test/**.pub-cache/** 
