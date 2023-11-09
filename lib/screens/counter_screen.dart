@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import 'circle_progress.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:convert';
 
 class CounterScreen extends StatefulWidget {
   final String sectionName;
@@ -19,6 +20,7 @@ class _CounterScreenState extends State<CounterScreen> {
   int times = 0;
   List<Map<String, int>> previousCounts =
       []; // Changed to Map to keep track of both count and times
+  List<Map<String, dynamic>> dailyCounts = [];
   Timer? _timer;
   bool isEditing = false; // To toggle between text view and text field
   // Declare a TextEditingController
@@ -27,8 +29,8 @@ class _CounterScreenState extends State<CounterScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCount();
-    _startEndOfDayListener();
+    Future.microtask(() => _loadCount());
+    // _startEndOfDayListener();
     _textEditingController = TextEditingController(text: '$count');
   }
 
@@ -39,51 +41,39 @@ class _CounterScreenState extends State<CounterScreen> {
     super.dispose();
   }
 
-  void _startEndOfDayListener() {
-    _timer = Timer.periodic(
-        const Duration(minutes: 1), (Timer t) => _checkEndOfDay());
-  }
-
-  void _checkEndOfDay() async {
-    var now = DateTime.now();
-    if (now.hour == 23 && now.minute == 59 && now.second == 59) {
-      await _saveCount();
+  void _loadCount() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    // Check for day change
+    String lastDay = prefs.getString('lastDay') ??
+        DateFormat('yyyy-MM-dd').format(DateTime.now());
+    if (DateFormat('yyyy-MM-dd').format(DateTime.now()) != lastDay) {
+      await _saveDailyCount(lastDay, count * times);
       setState(() {
+        // Reset count and times after saving
         count = 0;
+        times = 0;
+      });
+      // Update lastDay after state is updated
+      await prefs.setString(
+          'lastDay', DateFormat('yyyy-MM-dd').format(DateTime.now()));
+    }
+
+    // Load daily counts outside setState
+    String? dailyCountsStr = prefs.getString('dailyCounts');
+    if (dailyCountsStr != null) {
+      setState(() {
+        dailyCounts =
+            List<Map<String, dynamic>>.from(json.decode(dailyCountsStr));
       });
     }
   }
 
-  Future<void> _saveCount() async {
+  // Method to save daily count
+  Future<void> _saveDailyCount(String date, int dailyTotal) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? savedCounts = prefs.getStringList('saved_counts') ?? [];
-    String dateStamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    savedCounts.add('$dateStamp: $count');
-    await prefs.setStringList('saved_counts', savedCounts);
-    await prefs.setInt(widget.sectionName, 0);
-  }
-
-  _loadCount() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int savedCount = prefs.getInt(widget.sectionName) ?? 0;
-    String lastDate = prefs.getString('${widget.sectionName}_date') ?? '';
-    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    // If it's a new day and the app wasn't opened, save the count and reset it.
-    if (lastDate.isNotEmpty && lastDate != today) {
-      List<String> savedCounts =
-          prefs.getStringList('${widget.sectionName}_counts') ?? [];
-      savedCounts.add('$lastDate: $savedCount');
-      await prefs.setStringList('${widget.sectionName}_counts', savedCounts);
-      savedCount = 0; // Reset the count for the new day
-    }
-
-    setState(() {
-      count = savedCount;
-      prefs.setInt(widget.sectionName, savedCount);
-      prefs.setString(
-          '${widget.sectionName}_date', today); // Save the current date
-    });
+    dailyCounts.add({'date': date, 'total': dailyTotal});
+    // Save the updated daily counts list
+    await prefs.setString('dailyCounts', json.encode(dailyCounts));
   }
 
   void _incrementCounter() {
@@ -127,6 +117,36 @@ class _CounterScreenState extends State<CounterScreen> {
       count = newCount;
       prefs.setInt(widget.sectionName, count);
       isEditing = false;
+    });
+  }
+
+  List<Map<String, dynamic>> getDailyTotals() {
+    // Sort the list by date in descending order.
+    dailyCounts.sort((a, b) => b["date"].compareTo(a["date"]));
+
+    // If there's more than 30 entries, take only the last 30 days.
+    if (dailyCounts.length > 30) {
+      dailyCounts = dailyCounts.sublist(0, 30);
+    }
+
+    // Reverse the list to have the oldest date first for the chart display.
+    dailyCounts = dailyCounts.reversed.toList();
+
+    return dailyCounts;
+  }
+
+  // This function converts your daily totals data into BarChartGroupData for the chart.
+  List<BarChartGroupData> getBarGroups(List<Map<String, dynamic>> dailyTotals) {
+    return List.generate(dailyTotals.length, (index) {
+      final data = dailyTotals[index];
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+              toY: data['total'].toDouble(), color: Colors.lightBlueAccent)
+        ],
+        showingTooltipIndicators: [0],
+      );
     });
   }
 
@@ -197,6 +217,10 @@ class _CounterScreenState extends State<CounterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Retrieve daily totals for the bar chart.
+    List<Map<String, dynamic>> dailyTotals = getDailyTotals();
+    // Convert daily totals into BarChartGroupData for the chart.
+    List<BarChartGroupData> barGroups = getBarGroups(dailyTotals);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.sectionName),
@@ -237,6 +261,48 @@ class _CounterScreenState extends State<CounterScreen> {
             const SizedBox(height: 20), // Spacing
             ElevatedButton(
                 onPressed: _clearCounter, child: const Text('Clear')),
+            Expanded(
+                child: BarChart(BarChartData(
+              barGroups: barGroups,
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 22,
+                    interval: 1,
+                    getTitlesWidget: (double value, TitleMeta meta) {
+                      final date = DateFormat('MM-dd').format(
+                        DateTime.now()
+                            .subtract(Duration(days: 30 - value.toInt())),
+                      );
+                      return SideTitleWidget(
+                        axisSide: meta.axisSide,
+                        space: 16,
+                        child: Text(
+                          date,
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: false,
+                  ),
+                ),
+              ),
+              gridData: FlGridData(
+                show: false,
+              ),
+              borderData: FlBorderData(
+                show: false,
+              ),
+            )))
           ],
         ),
       ),

@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   //List<String> sections = ['Naam Jaap', 'Hanuman Chalisa'];
   List<Map<String, dynamic>> sections = [
-    {'title': 'Namm Jaap', 'icon': Icons.api},
+    {'title': 'Naam Jaap', 'icon': Icons.api},
     {'title': 'Hanuman Chalisa', 'icon': Icons.api},
     // Add other sections as necessary
   ];
