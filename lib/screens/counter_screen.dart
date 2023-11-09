@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
+import 'circle_progress.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class CounterScreen extends StatefulWidget {
   final String sectionName;
@@ -12,8 +16,10 @@ class CounterScreen extends StatefulWidget {
 
 class _CounterScreenState extends State<CounterScreen> {
   int count = 0;
-  List<int> previousCounts = []; // Stack to keep track of previous counts
-  int? lastCount; // To store the last count value for undo functionality
+  int times = 0;
+  List<Map<String, int>> previousCounts =
+      []; // Changed to Map to keep track of both count and times
+  Timer? _timer;
   bool isEditing = false; // To toggle between text view and text field
   // Declare a TextEditingController
   late TextEditingController _textEditingController;
@@ -22,7 +28,7 @@ class _CounterScreenState extends State<CounterScreen> {
   void initState() {
     super.initState();
     _loadCount();
-
+    _startEndOfDayListener();
     _textEditingController = TextEditingController(text: '$count');
   }
 
@@ -33,63 +39,128 @@ class _CounterScreenState extends State<CounterScreen> {
     super.dispose();
   }
 
+  void _startEndOfDayListener() {
+    _timer = Timer.periodic(
+        const Duration(minutes: 1), (Timer t) => _checkEndOfDay());
+  }
+
+  void _checkEndOfDay() async {
+    var now = DateTime.now();
+    if (now.hour == 23 && now.minute == 59 && now.second == 59) {
+      await _saveCount();
+      setState(() {
+        count = 0;
+      });
+    }
+  }
+
+  Future<void> _saveCount() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? savedCounts = prefs.getStringList('saved_counts') ?? [];
+    String dateStamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    savedCounts.add('$dateStamp: $count');
+    await prefs.setStringList('saved_counts', savedCounts);
+    await prefs.setInt(widget.sectionName, 0);
+  }
+
   _loadCount() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      count = prefs.getInt(widget.sectionName) ?? 0;
-    });
-  }
+    int savedCount = prefs.getInt(widget.sectionName) ?? 0;
+    String lastDate = prefs.getString('${widget.sectionName}_date') ?? '';
+    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-  _incrementCounter() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      previousCounts.add(count);
-      //lastCount = count; // Store the last count before incrementing
-      count++;
-      prefs.setInt(widget.sectionName, count);
-    });
-  }
-
-  _undoLastAction() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (lastCount != null) {
-      setState(() {
-        count = lastCount!;
-        prefs.setInt(widget.sectionName, count);
-        lastCount = null; // Reset lastCount
-      });
+    // If it's a new day and the app wasn't opened, save the count and reset it.
+    if (lastDate.isNotEmpty && lastDate != today) {
+      List<String> savedCounts =
+          prefs.getStringList('${widget.sectionName}_counts') ?? [];
+      savedCounts.add('$lastDate: $savedCount');
+      await prefs.setStringList('${widget.sectionName}_counts', savedCounts);
+      savedCount = 0; // Reset the count for the new day
     }
+
+    setState(() {
+      count = savedCount;
+      prefs.setInt(widget.sectionName, savedCount);
+      prefs.setString(
+          '${widget.sectionName}_date', today); // Save the current date
+    });
   }
 
-  _undoAction() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  void _incrementCounter() {
+    setState(() {
+      previousCounts
+          .add({'count': count, 'times': times}); // Save previous state
+      count++;
+      if (count > 108) {
+        count = 0;
+        times++;
+      }
+    });
+  }
+
+  void _undoAction() {
     if (previousCounts.isNotEmpty) {
       setState(() {
-        // Revert to the previous count
-        count = previousCounts.removeLast();
-        prefs.setInt(widget.sectionName, count);
+        // Retrieve the last state from the list of previous states.
+        Map<String, int> previousState = previousCounts.removeLast();
+        // Use the retrieved values to update the count and times.
+        count = previousState['count'] ?? 0; // Fallback to 0 if null
+        times = previousState['times'] ?? 0; // Fallback to 0 if null
       });
     }
   }
 
-  _clearCounter() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  void _clearCounter() {
     setState(() {
-      previousCounts.add(count);
-      //lastCount = count; // Store the last count before clearing
+      previousCounts.add({
+        'count': count,
+        'times': times
+      }); // Save previous state before clearing
       count = 0;
-      prefs.remove(widget.sectionName);
+      times = 0;
     });
   }
 
   _updateCount(int newCount) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      lastCount = count; // Store the last count before manual update
       count = newCount;
       prefs.setInt(widget.sectionName, count);
       isEditing = false;
     });
+  }
+
+  Widget _buildSavedCountsTable() {
+    return FutureBuilder<SharedPreferences>(
+      future: SharedPreferences.getInstance(),
+      builder:
+          (BuildContext context, AsyncSnapshot<SharedPreferences> snapshot) {
+        if (!snapshot.hasData) {
+          return const CircularProgressIndicator();
+        }
+        List<String>? savedCounts =
+            snapshot.data?.getStringList('saved_counts');
+        if (savedCounts == null || savedCounts.isEmpty) {
+          return const Center(child: Text('No saved counts'));
+        }
+        return ListView.separated(
+          itemCount: savedCounts.length,
+          separatorBuilder: (context, index) => Divider(),
+          itemBuilder: (context, index) {
+            return ListTile(
+              title: Text(savedCounts[index]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _timesDisplay() {
+    return Text(
+      'Times: $times',
+      style: Theme.of(context).textTheme.titleMedium,
+    );
   }
 
   Widget _countDisplay() {
@@ -100,7 +171,7 @@ class _CounterScreenState extends State<CounterScreen> {
             isEditing = true;
           });
         },
-        child: Text('$count', style: Theme.of(context).textTheme.headline4),
+        child: Text('$count', style: Theme.of(context).textTheme.headlineLarge),
       );
     } else {
       // Ensure the TextEditingController has the current count
@@ -141,12 +212,31 @@ class _CounterScreenState extends State<CounterScreen> {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _countDisplay(),
-            ElevatedButton(onPressed: _incrementCounter, child: Text('Count')),
-            ElevatedButton(onPressed: _clearCounter, child: Text('Clear')),
-            if (lastCount != null)
-              ElevatedButton(onPressed: _undoLastAction, child: Text('Undo')),
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+            ),
+            const SizedBox(height: 20), // Spacing
+            GestureDetector(
+              onTap: _incrementCounter, // Increment counter on tap
+              child: CustomPaint(
+                painter: CircleProgress(
+                    count / 108 * 100), // Adjust the ratio as per the goal
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[_countDisplay(), _timesDisplay()],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20), // Spacing
+            ElevatedButton(
+                onPressed: _clearCounter, child: const Text('Clear')),
           ],
         ),
       ),
